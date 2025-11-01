@@ -220,7 +220,7 @@ jobs:
                     "--max-iterations", "30"
                 ]
                 
-                print(f"Running Agent (timeout: 20 minutes)...")
+                print(f"Running Agent (timeout: 10 minutes for quick test)...")
                 print(f"Command: {' '.join(cmd)}")
                 print("=" * 80)
                 sys.stdout.flush()
@@ -242,8 +242,8 @@ jobs:
                     print(line, end='', flush=True)
                     output_lines.append(line)
                 
-                # Wait for completion
-                return_code = process.wait(timeout=1200)
+                # Wait for completion (10 minutes for simple task)
+                return_code = process.wait(timeout=600)
                 
                 # Create result object
                 class Result:
@@ -363,8 +363,16 @@ jobs:
             # Load dataset
             print(f"\nLoading {DATASET_NAME}...")
             dataset = load_dataset(DATASET_NAME, split="test")
-            instances = list(dataset.select(range(NUM_INSTANCES)))
-            print(f"✅ Testing with {len(instances)} instance(s)")
+            
+            # Use simple test instance for quick testing
+            TEST_INSTANCE = "pallets__flask-4045"  # Simple 230-char issue
+            instances = [item for item in dataset if item['instance_id'] == TEST_INSTANCE]
+            
+            if not instances:
+                print(f"⚠️  Test instance {TEST_INSTANCE} not found, using first {NUM_INSTANCES}")
+                instances = list(dataset.select(range(NUM_INSTANCES)))
+            
+            print(f"✅ Testing with {len(instances)} instance(s): {[i['instance_id'] for i in instances]}")
             
             # Output file
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
