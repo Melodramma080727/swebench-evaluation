@@ -35,8 +35,38 @@ jobs:
     - name: Clone Agents framework repository
       run: |
         cd /tmp
-        git clone ${{ github.event.inputs.agent_repo || 'https://github.com/Melodramma080727/Agents.git' }} agents
+        
+        echo "Attempting to clone Agents repository..."
+        
+        # Method 1: Try with GitHub Actions default token
+        if git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Melodramma080727/Agents.git agents 2>/dev/null; then
+          echo "✅ Cloned with GITHUB_TOKEN"
+        # Method 2: Try with personal access token if available
+        elif [ -n "${{ secrets.GH_PAT }}" ]; then
+          echo "Trying with GH_PAT..."
+          git clone https://${{ secrets.GH_PAT }}@github.com/Melodramma080727/Agents.git agents
+          echo "✅ Cloned with GH_PAT"
+        # Method 3: Try public clone
+        else
+          echo "Trying public clone..."
+          git clone https://github.com/Melodramma080727/Agents.git agents
+          echo "✅ Cloned publicly"
+        fi
+        
+        if [ ! -d agents ]; then
+          echo "❌ Failed to clone Agents repository"
+          echo ""
+          echo "💡 Solutions:"
+          echo "   1. Make the Agents repository public, OR"
+          echo "   2. Add GH_PAT secret (Settings → Secrets → New secret)"
+          echo "      Name: GH_PAT"
+          echo "      Value: Your GitHub Personal Access Token with 'repo' scope"
+          echo "      Create at: https://github.com/settings/tokens"
+          exit 1
+        fi
+        
         cd agents
+        echo "✅ Agents repository ready"
         git log --oneline -5
         
     - name: Set up environment for Agents
