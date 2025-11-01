@@ -217,10 +217,12 @@ jobs:
                     "docker", "compose", "run", "--rm",
                     "-T",  # Disable pseudo-TTY allocation (non-interactive)
                     "-e", f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')}",
+                    "-e", "OPENHANDS_SKIP_CONFIRMATIONS=true",  # Skip all confirmations
                     "-v", f"{instance_workspace}:/workspace/projects/{instance_id}",
                     "agent",
                     "--task", task,
-                    "--max-iterations", "30"
+                    "--max-iterations", "30",
+                    "--yes"  # Auto-confirm all prompts
                 ]
                 
                 print(f"Running Agent (timeout: 10 minutes for quick test)...")
