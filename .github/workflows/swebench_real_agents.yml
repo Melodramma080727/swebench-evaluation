@@ -279,7 +279,8 @@ jobs:
                     "-v", f"{trusted_config_file}:/root/.openhands/config.toml:ro",  # Mount trusted dirs config
                     "agent",
                     "--task", task,
-                    "--max-iterations", "50"  # Increased from 30 to allow more time for complex tasks
+                    "--max-iterations", "50",  # Increased from 30 to allow more time for complex tasks
+                    "--override-cli-mode", "true"  # Override CLI defaults that force confirmation_mode=True
                 ]
                 
                 print(f"Running Agent (timeout: 10 minutes for quick test)...")
