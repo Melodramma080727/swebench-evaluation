@@ -74,9 +74,9 @@ jobs:
           INSTANCES="${{ github.event.inputs.instance_ids }}"
         fi
         
-        # 临时：使用 gold predictions 来验证环境
-        echo "Using gold predictions to verify environment"
-        PRED_PATH="gold"
+        # 使用修复后的 API predictions
+        echo "Using fixed API predictions"
+        PRED_PATH="/tmp/predictions/api_predictions_v2_20251101_061646.jsonl"
         
         # 查找 prediction 文件（暂时注释掉）
         # PRED_FILE=$(ls /tmp/predictions/*.jsonl 2>/dev/null | head -1)
