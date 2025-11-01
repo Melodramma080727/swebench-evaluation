@@ -1,0 +1,446 @@
+name: SWE-bench Real Agents Framework Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      num_instances:
+        description: 'Number of instances to test (1-10 recommended for first test)'
+        required: false
+        default: '1'
+      agent_repo:
+        description: 'Agents repository URL'
+        required: false
+        default: 'https://github.com/Melodramma080727/Agents.git'
+
+jobs:
+  # Job 1: Build Agents Docker image and generate patches
+  generate_with_agents:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 hours for real agent execution
+    
+    steps:
+    - name: Maximize build space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        df -h
+        
+    - name: Checkout this repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Clone Agents framework repository
+      run: |
+        cd /tmp
+        git clone ${{ github.event.inputs.agent_repo || 'https://github.com/Melodramma080727/Agents.git' }} agents
+        cd agents
+        git log --oneline -5
+        
+    - name: Set up environment for Agents
+      run: |
+        cd /tmp/agents
+        
+        # Create .env file with API key
+        cat > .env << EOF
+        LLM_PROVIDER=anthropic
+        LLM_MODEL=claude-sonnet-4-20250514
+        LLM_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+        LLM_BASE_URL=https://api.anthropic.com
+        EOF
+        
+        # Create config file
+        cat > workspace/config.docker.toml << EOF
+        [core]
+        workspace_base = "/workspace"
+        workspace_mount_path = "/workspace"
+        
+        [llm]
+        model = "anthropic/claude-sonnet-4-20250514"
+        api_key = "${{ secrets.ANTHROPIC_API_KEY }}"
+        temperature = 0.0
+        
+        [agent]
+        name = "CodeActAgent"
+        EOF
+        
+        echo "Environment configured"
+        cat .env | head -3
+        
+    - name: Build Agents Docker image
+      run: |
+        cd /tmp/agents
+        echo "Building Docker image..."
+        docker compose build agent
+        echo "Image built successfully"
+        docker images | grep keplore
+        
+    - name: Set up Python for orchestration
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install Python dependencies
+      run: |
+        pip install datasets tqdm
+        
+    - name: Create SWE-bench task runner
+      run: |
+        cat > /tmp/run_agents_real.py << 'PYEOF'
+        #!/usr/bin/env python3
+        """
+        Real Agents Framework Runner for SWE-bench
+        Runs each task through the actual Agents Docker container
+        """
+        
+        import json
+        import os
+        import subprocess
+        import time
+        from pathlib import Path
+        from datetime import datetime
+        from datasets import load_dataset
+        
+        AGENTS_DIR = Path("/tmp/agents")
+        OUTPUT_DIR = Path("/tmp/swebench_agents_output")
+        OUTPUT_DIR.mkdir(exist_ok=True)
+        
+        DATASET_NAME = "princeton-nlp/SWE-bench_Lite"
+        MODEL_NAME = "claude-sonnet-4-20250514"
+        NUM_INSTANCES = int(os.getenv("NUM_INSTANCES", "1"))
+        
+        def create_agent_task(instance):
+            """Create task prompt for the Agents framework."""
+            return f"""You are working on the {instance['repo']} repository.
+        
+        TASK: Fix the following GitHub issue by generating a complete git diff patch.
+        
+        Issue ID: {instance['instance_id']}
+        Base Commit: {instance.get('base_commit', 'N/A')}
+        
+        Issue Description:
+        {instance['problem_statement']}
+        
+        INSTRUCTIONS:
+        1. Analyze the issue carefully
+        2. Identify the files that need to be modified
+        3. Make the necessary code changes
+        4. Generate a complete git diff patch showing all changes
+        
+        OUTPUT REQUIREMENT:
+        At the end of your work, create a file called 'solution.patch' in the workspace containing ONLY the git diff patch in standard unified diff format:
+        
+        diff --git a/path/to/file.py b/path/to/file.py
+        --- a/path/to/file.py
+        +++ b/path/to/file.py
+        @@ -line,count +line,count @@
+         context
+        -removed line
+        +added line
+         context
+        
+        The patch must be complete and ready to apply with 'git apply'.
+        """
+        
+        def run_agent_on_task(instance, instance_idx, total):
+            """Run the Agents framework on a single SWE-bench task."""
+            instance_id = instance['instance_id']
+            
+            print(f"\n{'='*80}")
+            print(f"[{instance_idx}/{total}] Processing: {instance_id}")
+            print(f"Repository: {instance['repo']}")
+            print(f"{'='*80}")
+            
+            # Create task
+            task = create_agent_task(instance)
+            
+            # Create workspace for this instance
+            instance_workspace = AGENTS_DIR / "workspace" / "projects" / instance_id
+            instance_workspace.mkdir(parents=True, exist_ok=True)
+            
+            # Save task description
+            task_file = instance_workspace / "task.txt"
+            task_file.write_text(task)
+            
+            print(f"Task created ({len(task)} chars)")
+            print(f"Workspace: {instance_workspace}")
+            
+            # Run agent using docker compose
+            start_time = time.time()
+            
+            try:
+                # Build command
+                cmd = [
+                    "docker", "compose", "run", "--rm",
+                    "-v", f"{instance_workspace}:/workspace/projects/{instance_id}",
+                    "agent",
+                    "--task", task,
+                    "--max-iterations", "30",
+                    "--no-auto-continue"
+                ]
+                
+                print(f"Running Agent (timeout: 20 minutes)...")
+                
+                result = subprocess.run(
+                    cmd,
+                    cwd=AGENTS_DIR,
+                    capture_output=True,
+                    text=True,
+                    timeout=1200  # 20 minutes
+                )
+                
+                elapsed = time.time() - start_time
+                print(f"Agent completed in {elapsed:.1f}s")
+                
+                # Extract patch
+                patch = extract_patch_from_workspace(instance_workspace, result.stdout)
+                
+                if not patch:
+                    print(f"⚠️  No patch found")
+                    # Save output for debugging
+                    debug_file = OUTPUT_DIR / f"{instance_id}_output.log"
+                    debug_file.write_text(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}")
+                    
+                    return {
+                        "instance_id": instance_id,
+                        "model_name_or_path": "real_agents_framework",
+                        "model_patch": "",
+                        "error": "No patch generated",
+                        "elapsed_time": elapsed
+                    }
+                
+                print(f"✅ Patch extracted ({len(patch)} chars, {len(patch.split(chr(10)))} lines)")
+                
+                # Save patch
+                patch_file = OUTPUT_DIR / f"{instance_id}.patch"
+                patch_file.write_text(patch)
+                
+                return {
+                    "instance_id": instance_id,
+                    "model_name_or_path": "real_agents_framework",
+                    "model_patch": patch,
+                    "elapsed_time": elapsed
+                }
+                
+            except subprocess.TimeoutExpired:
+                elapsed = time.time() - start_time
+                print(f"❌ Timeout after {elapsed:.1f}s")
+                return {
+                    "instance_id": instance_id,
+                    "model_name_or_path": "real_agents_framework",
+                    "model_patch": "",
+                    "error": "Timeout",
+                    "elapsed_time": elapsed
+                }
+            except Exception as e:
+                elapsed = time.time() - start_time
+                print(f"❌ Error: {e}")
+                import traceback
+                traceback.print_exc()
+                return {
+                    "instance_id": instance_id,
+                    "model_name_or_path": "real_agents_framework",
+                    "model_patch": "",
+                    "error": str(e),
+                    "elapsed_time": elapsed
+                }
+        
+        def extract_patch_from_workspace(workspace_dir, agent_output):
+            """Extract patch from agent workspace or output."""
+            # Method 1: Look for solution.patch file
+            solution_file = workspace_dir / "solution.patch"
+            if solution_file.exists():
+                content = solution_file.read_text()
+                if content.strip().startswith('diff --git'):
+                    return content.strip()
+            
+            # Method 2: Look for any .patch or .diff files
+            for ext in ['.patch', '.diff']:
+                for patch_file in workspace_dir.rglob(f'*{ext}'):
+                    content = patch_file.read_text()
+                    if content.strip().startswith('diff --git'):
+                        return content.strip()
+            
+            # Method 3: Extract from agent output
+            if 'diff --git' in agent_output:
+                lines = agent_output.split('\n')
+                patch_lines = []
+                in_patch = False
+                
+                for line in lines:
+                    if line.startswith('diff --git'):
+                        in_patch = True
+                    if in_patch:
+                        patch_lines.append(line)
+                        # Simple heuristic: stop at clear end markers
+                        if line.strip() in ['```', '---END---', 'Task completed']:
+                            break
+                
+                if patch_lines:
+                    return '\n'.join(patch_lines).strip()
+            
+            return ""
+        
+        def main():
+            print("="*80)
+            print("🤖 Real Agents Framework Evaluation for SWE-bench")
+            print("="*80)
+            
+            # Load dataset
+            print(f"\nLoading {DATASET_NAME}...")
+            dataset = load_dataset(DATASET_NAME, split="test")
+            instances = list(dataset.select(range(NUM_INSTANCES)))
+            print(f"✅ Testing with {len(instances)} instance(s)")
+            
+            # Output file
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            predictions_file = OUTPUT_DIR / f"real_agents_predictions_{timestamp}.jsonl"
+            
+            print(f"Predictions will be saved to: {predictions_file}\n")
+            
+            # Process instances
+            results = []
+            successful = 0
+            failed = 0
+            total_time = 0
+            
+            with open(predictions_file, 'w') as f:
+                for idx, instance in enumerate(instances, 1):
+                    result = run_agent_on_task(instance, idx, len(instances))
+                    
+                    f.write(json.dumps(result) + '\n')
+                    f.flush()
+                    
+                    results.append(result)
+                    total_time += result.get('elapsed_time', 0)
+                    
+                    if result.get('model_patch'):
+                        successful += 1
+                    else:
+                        failed += 1
+            
+            # Summary
+            print("\n" + "="*80)
+            print("SUMMARY")
+            print("="*80)
+            print(f"Total instances: {len(instances)}")
+            print(f"Successful: {successful}")
+            print(f"Failed: {failed}")
+            print(f"Success rate: {successful/len(instances)*100:.1f}%")
+            print(f"Total time: {total_time:.1f}s ({total_time/60:.1f} minutes)")
+            print(f"Avg time per instance: {total_time/len(instances):.1f}s")
+            print(f"\nPredictions: {predictions_file}")
+            print("="*80)
+            
+            # Output path for next step
+            print(predictions_file)
+        
+        if __name__ == "__main__":
+            main()
+        PYEOF
+        
+        chmod +x /tmp/run_agents_real.py
+        
+    - name: Run Agents Framework on SWE-bench tasks
+      env:
+        NUM_INSTANCES: ${{ github.event.inputs.num_instances || '1' }}
+      run: |
+        python3 /tmp/run_agents_real.py 2>&1 | tee /tmp/agents_run.log
+        
+    - name: Upload predictions artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: real-agents-predictions
+        path: /tmp/swebench_agents_output/*.jsonl
+        retention-days: 7
+        
+    - name: Upload patches artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: real-agents-patches
+        path: /tmp/swebench_agents_output/*.patch
+        retention-days: 7
+        
+    - name: Upload debug logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: real-agents-logs
+        path: |
+          /tmp/agents_run.log
+          /tmp/swebench_agents_output/*.log
+        retention-days: 7
+
+  # Job 2: Evaluate the patches
+  evaluate_patches:
+    needs: generate_with_agents
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git build-essential
+        
+    - name: Clone and install SWE-bench
+      run: |
+        cd /tmp
+        git clone https://github.com/SWE-bench/SWE-bench.git
+        cd SWE-bench
+        pip install -e .
+        pip install --upgrade docker==7.1.0
+        
+    - name: Download predictions
+      uses: actions/download-artifact@v4
+      with:
+        name: real-agents-predictions
+        path: /tmp/predictions
+        
+    - name: List downloaded files
+      run: |
+        echo "Downloaded predictions:"
+        ls -lh /tmp/predictions/
+        echo "Content preview:"
+        head -100 /tmp/predictions/*.jsonl || echo "No predictions found"
+        
+    - name: Run SWE-bench evaluation
+      run: |
+        cd /tmp/SWE-bench
+        
+        PRED_FILE=$(ls /tmp/predictions/*.jsonl | head -1)
+        
+        if [ -z "$PRED_FILE" ]; then
+          echo "❌ No predictions file found!"
+          exit 1
+        fi
+        
+        echo "Evaluating: $PRED_FILE"
+        
+        # Run evaluation
+        python3 -m swebench.harness.run_evaluation \
+            --dataset_name princeton-nlp/SWE-bench_Lite \
+            --predictions_path "$PRED_FILE" \
+            --max_workers 1 \
+            --run_id real_agents_$(date +%Y%m%d_%H%M%S)
+        
+    - name: Upload evaluation results
+      uses: actions/upload-artifact@v4
+      with:
+        name: real-agents-evaluation-results
+        path: |
+          /tmp/SWE-bench/*.json
+          /tmp/SWE-bench/logs/
+        retention-days: 30
+        
+    - name: Display results
+      run: |
+        echo "=== Evaluation Results ==="
+        cat /tmp/SWE-bench/*.json 2>/dev/null || echo "No results file found"
