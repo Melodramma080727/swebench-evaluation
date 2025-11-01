@@ -221,9 +221,22 @@ jobs:
         
         print(f"\nPredictions saved to: {predictions_file}")
         print(predictions_file)
+        
+        # Debug: Show first prediction
+        with open(predictions_file, 'r') as f:
+            first_line = f.readline()
+            print(f"\nFirst prediction (debug):")
+            print(first_line[:500])
         EOF
         
-        python3 /tmp/run_agents.py > /tmp/predictions_path.txt
+        echo "=== Running patch generation ==="
+        python3 /tmp/run_agents.py 2>&1 | tee /tmp/predictions_path.txt
+        echo "=== Generation complete ==="
+        
+        # Debug: Check if file was created
+        ls -lh /tmp/predictions/
+        echo "Predictions file content:"
+        cat /tmp/predictions/*.jsonl || echo "No predictions file found!"
         
     - name: Upload predictions artifact
       uses: actions/upload-artifact@v4
