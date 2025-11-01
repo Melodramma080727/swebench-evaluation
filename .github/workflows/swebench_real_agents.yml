@@ -136,7 +136,7 @@ jobs:
         
     - name: Install Python dependencies
       run: |
-        pip install datasets tqdm
+        pip install datasets tqdm toml
         
     - name: Create SWE-bench task runner
       run: |
@@ -152,6 +152,7 @@ jobs:
         import subprocess
         import sys
         import time
+        import toml
         from pathlib import Path
         from datetime import datetime
         from datasets import load_dataset
@@ -230,6 +231,20 @@ jobs:
             }
             settings_file.write_text(json.dumps(settings_data, indent=2))
             
+            # Create trusted_dirs config to skip folder security prompt
+            # This will be mounted to /root/.openhands/config.toml in the container
+            trusted_config_dir = AGENTS_DIR / "workspace" / ".trusted_config"
+            trusted_config_dir.mkdir(exist_ok=True)
+            trusted_config_file = trusted_config_dir / "config.toml"
+            trusted_config_data = {
+                "sandbox": {
+                    "trusted_dirs": ["/workspace", "/app"]
+                }
+            }
+            with open(trusted_config_file, 'w') as f:
+                import toml
+                toml.dump(trusted_config_data, f)
+            
             # Save task description
             task_file = instance_workspace / "task.txt"
             task_file.write_text(task)
@@ -237,6 +252,7 @@ jobs:
             print(f"Task created ({len(task)} chars)")
             print(f"Workspace: {instance_workspace}")
             print(f"Settings: {settings_file}")
+            print(f"Trusted config: {trusted_config_file}")
             
             # Run agent using docker compose
             start_time = time.time()
@@ -250,6 +266,7 @@ jobs:
                     "-e", f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')}",
                     "-e", "OPENHANDS_SKIP_CONFIRMATIONS=true",  # Skip all confirmations
                     "-v", f"{instance_workspace}:/workspace",  # Mount directly to /workspace to avoid path duplication
+                    "-v", f"{trusted_config_file}:/root/.openhands/config.toml:ro",  # Mount trusted dirs config
                     "agent",
                     "--task", task,
                     "--max-iterations", "50"  # Increased from 30 to allow more time for complex tasks
