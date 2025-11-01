@@ -212,9 +212,11 @@ jobs:
             
             try:
                 # Build command - disable TTY for non-interactive mode
+                # Pass ANTHROPIC_API_KEY as environment variable
                 cmd = [
                     "docker", "compose", "run", "--rm",
                     "-T",  # Disable pseudo-TTY allocation (non-interactive)
+                    "-e", f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')}",
                     "-v", f"{instance_workspace}:/workspace/projects/{instance_id}",
                     "agent",
                     "--task", task,
@@ -427,6 +429,7 @@ jobs:
     - name: Run Agents Framework on SWE-bench tasks
       env:
         NUM_INSTANCES: ${{ github.event.inputs.num_instances || '1' }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
         python3 /tmp/run_agents_real.py 2>&1 | tee /tmp/agents_run.log
         
