@@ -289,6 +289,16 @@ jobs:
                                 process.stdin.flush()
                             except:
                                 pass
+                        
+                        # Detect task completion and send exit
+                        if "Task completed" in line:
+                            time.sleep(2)  # Wait for any final output
+                            try:
+                                process.stdin.write("exit\n")
+                                process.stdin.flush()
+                                process.stdin.close()
+                            except:
+                                pass
                     except queue.Empty:
                         if process.poll() is not None:
                             break
