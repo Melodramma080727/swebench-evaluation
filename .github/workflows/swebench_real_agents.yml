@@ -232,7 +232,7 @@ jobs:
                     "-T",  # Disable pseudo-TTY allocation (non-interactive)
                     "-e", f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')}",
                     "-e", "OPENHANDS_SKIP_CONFIRMATIONS=true",  # Skip all confirmations
-                    "-v", f"{AGENTS_DIR / 'workspace' / '.openhands'}:/workspace/.openhands:ro",  # Mount settings.json
+                    "-v", f"{AGENTS_DIR / 'workspace' / '.openhands'}:/workspace/.openhands",  # Mount settings.json (read-write for .jwt_secret)
                     "-v", f"{instance_workspace}:/workspace/{instance_id}",  # Mount instance workspace
                     "agent",
                     "--task", task,
