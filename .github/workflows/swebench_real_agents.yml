@@ -426,11 +426,31 @@ jobs:
         
         chmod +x /tmp/run_agents_real.py
         
+    - name: Verify API key is set
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: |
+        if [ -z "$ANTHROPIC_API_KEY" ]; then
+          echo "❌ ERROR: ANTHROPIC_API_KEY secret is not set!"
+          echo ""
+          echo "📝 To fix this:"
+          echo "1. Go to: https://github.com/Melodramma080727/swebench-evaluation/settings/secrets/actions"
+          echo "2. Click 'New repository secret'"
+          echo "3. Name: ANTHROPIC_API_KEY"
+          echo "4. Value: Your Anthropic API key (sk-ant-...)"
+          echo "5. Click 'Add secret'"
+          exit 1
+        else
+          echo "✅ ANTHROPIC_API_KEY is set (length: ${#ANTHROPIC_API_KEY})"
+        fi
+        
     - name: Run Agents Framework on SWE-bench tasks
       env:
         NUM_INSTANCES: ${{ github.event.inputs.num_instances || '1' }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
+        echo "API Key length: ${#ANTHROPIC_API_KEY}"
+        export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}"
         python3 /tmp/run_agents_real.py 2>&1 | tee /tmp/agents_run.log
         
     - name: Upload predictions artifact
