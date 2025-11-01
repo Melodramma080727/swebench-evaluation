@@ -213,12 +213,30 @@ jobs:
             instance_workspace = AGENTS_DIR / "workspace" / "projects" / instance_id
             instance_workspace.mkdir(parents=True, exist_ok=True)
             
+            # Create .openhands directory for settings
+            openhands_dir = instance_workspace / ".openhands"
+            openhands_dir.mkdir(exist_ok=True)
+            
+            # Create settings.json to skip initial setup prompts
+            settings_file = openhands_dir / "settings.json"
+            settings_data = {
+                "LLM_MODEL": "anthropic/claude-sonnet-4-20250514",
+                "LLM_API_KEY": os.getenv('ANTHROPIC_API_KEY'),
+                "LLM_BASE_URL": None,
+                "AGENT": "CodeActAgent",
+                "CONFIRMATION_MODE": False,
+                "SECURITY_ANALYZER": "",
+                "LANGUAGE": "en",
+            }
+            settings_file.write_text(json.dumps(settings_data, indent=2))
+            
             # Save task description
             task_file = instance_workspace / "task.txt"
             task_file.write_text(task)
             
             print(f"Task created ({len(task)} chars)")
             print(f"Workspace: {instance_workspace}")
+            print(f"Settings: {settings_file}")
             
             # Run agent using docker compose
             start_time = time.time()
