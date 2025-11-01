@@ -221,8 +221,7 @@ jobs:
                     "-v", f"{instance_workspace}:/workspace/projects/{instance_id}",
                     "agent",
                     "--task", task,
-                    "--max-iterations", "30",
-                    "--yes"  # Auto-confirm all prompts
+                    "--max-iterations", "30"
                 ]
                 
                 print(f"Running Agent (timeout: 10 minutes for quick test)...")
@@ -231,15 +230,25 @@ jobs:
                 sys.stdout.flush()
                 
                 # Use Popen for real-time output
+                # Send "a" (always) to stdin to auto-approve all confirmations
                 process = subprocess.Popen(
                     cmd,
                     cwd=AGENTS_DIR,
+                    stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     bufsize=1,  # Line buffered
                     universal_newlines=True
                 )
+                
+                # Send "a\n" multiple times to handle confirmation prompts
+                try:
+                    process.stdin.write("a\n" * 100)
+                    process.stdin.flush()
+                    process.stdin.close()
+                except:
+                    pass
                 
                 # Stream output in real-time
                 output_lines = []
