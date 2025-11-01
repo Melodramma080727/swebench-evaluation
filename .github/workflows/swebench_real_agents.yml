@@ -89,7 +89,7 @@ jobs:
         max_iterations = 50
         file_store = "local"
         file_store_path = "/workspace/.openhands"
-        workspace_base = "/workspace/projects"
+        workspace_base = "/workspace"
         
         [llm]
         api_key = "${{ secrets.ANTHROPIC_API_KEY }}"
@@ -231,10 +231,10 @@ jobs:
                     "-T",  # Disable pseudo-TTY allocation (non-interactive)
                     "-e", f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')}",
                     "-e", "OPENHANDS_SKIP_CONFIRMATIONS=true",  # Skip all confirmations
-                    "-v", f"{instance_workspace}:/workspace/projects/{instance_id}",
+                    "-v", f"{instance_workspace}:/workspace",  # Mount directly to /workspace to avoid path duplication
                     "agent",
                     "--task", task,
-                    "--max-iterations", "30"
+                    "--max-iterations", "50"  # Increased from 30 to allow more time for complex tasks
                 ]
                 
                 print(f"Running Agent (timeout: 10 minutes for quick test)...")
