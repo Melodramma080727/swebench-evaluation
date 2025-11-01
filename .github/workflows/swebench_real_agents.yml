@@ -212,6 +212,7 @@ jobs:
                 ]
                 
                 print(f"Running Agent (timeout: 20 minutes)...")
+                print(f"Command: {' '.join(cmd)}")
                 
                 result = subprocess.run(
                     cmd,
@@ -223,6 +224,15 @@ jobs:
                 
                 elapsed = time.time() - start_time
                 print(f"Agent completed in {elapsed:.1f}s")
+                print(f"Return code: {result.returncode}")
+                
+                # Show agent output for debugging
+                if result.stdout:
+                    print("=== Agent STDOUT (first 2000 chars) ===")
+                    print(result.stdout[:2000])
+                if result.stderr:
+                    print("=== Agent STDERR (first 2000 chars) ===")
+                    print(result.stderr[:2000])
                 
                 # Extract patch
                 patch = extract_patch_from_workspace(instance_workspace, result.stdout)
