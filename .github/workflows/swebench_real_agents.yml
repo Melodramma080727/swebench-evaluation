@@ -104,6 +104,19 @@ jobs:
         confirmation_mode = false
         EOF
         
+        # Create settings.json to skip initial setup
+        mkdir -p workspace/.openhands
+        cat > workspace/.openhands/settings.json << EOF
+        {
+          "LLM_MODEL": "claude-sonnet-4-20250514",
+          "LLM_API_KEY": "${{ secrets.ANTHROPIC_API_KEY }}",
+          "LLM_BASE_URL": null,
+          "AGENT": "CodeActAgent",
+          "CONFIRMATION_MODE": false,
+          "ENABLE_DEFAULT_CONDENSER": false
+        }
+        EOF
+        
         echo "✅ Environment configured"
         echo "Config file:"
         cat workspace/config.docker.toml
