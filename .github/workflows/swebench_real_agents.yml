@@ -89,7 +89,7 @@ jobs:
         max_iterations = 50
         file_store = "local"
         file_store_path = "/workspace/.openhands"
-        workspace_base = "/workspace"
+        workspace_base = "/workspace/projects"
         
         [llm]
         api_key = "${{ secrets.ANTHROPIC_API_KEY }}"
@@ -232,9 +232,7 @@ jobs:
                     "-T",  # Disable pseudo-TTY allocation (non-interactive)
                     "-e", f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')}",
                     "-e", "OPENHANDS_SKIP_CONFIRMATIONS=true",  # Skip all confirmations
-                    "-v", f"{AGENTS_DIR / 'workspace' / '.openhands'}:/workspace/.openhands",  # Mount settings.json (read-write for .jwt_secret)
-                    "-v", f"{instance_workspace}:/workspace/{instance_id}",  # Mount instance workspace
-                    "agent",
+                    "agent",  # No volume override - use docker-compose.yml default mount
                     "--task", task,
                     "--max-iterations", "50"  # Increased from 30 to allow completion
                 ]
