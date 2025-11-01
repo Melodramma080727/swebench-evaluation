@@ -278,6 +278,7 @@ jobs:
                     "-v", f"{instance_workspace}:/workspace",  # Mount directly to /workspace to avoid path duplication
                     "-v", f"{trusted_config_file}:/root/.openhands/config.toml:ro",  # Mount trusted dirs config
                     "agent",
+                    "--directory", "/workspace",  # Specify working directory explicitly
                     "--task", task,
                     "--max-iterations", "50",  # Increased from 30 to allow more time for complex tasks
                     "--override-cli-mode", "true"  # Override CLI defaults that force confirmation_mode=True
