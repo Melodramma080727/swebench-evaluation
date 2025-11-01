@@ -222,14 +222,37 @@ jobs:
                 
                 print(f"Running Agent (timeout: 20 minutes)...")
                 print(f"Command: {' '.join(cmd)}")
+                print("=" * 80)
+                sys.stdout.flush()
                 
-                result = subprocess.run(
+                # Use Popen for real-time output
+                process = subprocess.Popen(
                     cmd,
                     cwd=AGENTS_DIR,
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
                     text=True,
-                    timeout=1200  # 20 minutes
+                    bufsize=1,  # Line buffered
+                    universal_newlines=True
                 )
+                
+                # Stream output in real-time
+                output_lines = []
+                for line in process.stdout:
+                    print(line, end='', flush=True)
+                    output_lines.append(line)
+                
+                # Wait for completion
+                return_code = process.wait(timeout=1200)
+                
+                # Create result object
+                class Result:
+                    def __init__(self, returncode, stdout):
+                        self.returncode = returncode
+                        self.stdout = stdout
+                        self.stderr = ""
+                
+                result = Result(return_code, ''.join(output_lines))
                 
                 elapsed = time.time() - start_time
                 print(f"Agent completed in {elapsed:.1f}s")
