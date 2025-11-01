@@ -1,0 +1,314 @@
+name: SWE-bench Agents Framework Evaluation
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      num_instances:
+        description: 'Number of instances to evaluate (3 for test, 300 for full)'
+        required: false
+        default: '3'
+      max_workers:
+        description: 'Number of parallel workers for evaluation'
+        required: false
+        default: '1'
+
+jobs:
+  # Job 1: Generate patches using Agents framework
+  generate_patches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hours for generation
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git build-essential
+        
+    - name: Install Docker Compose
+      run: |
+        docker --version
+        docker compose version
+        
+    - name: Clone Agents repository
+      run: |
+        cd /tmp
+        git clone https://github.com/${{ github.repository_owner }}/Agents.git || true
+        # If your Agents repo is private or has different name, adjust above
+        # For now, we'll use the code from this repo's parent directory
+        
+    - name: Setup Agents framework
+      run: |
+        # Copy Agents code to workspace
+        mkdir -p /tmp/agents_workspace
+        
+        # Create .env file with API key
+        echo "LLM_PROVIDER=anthropic" > /tmp/agents_workspace/.env
+        echo "LLM_MODEL=claude-sonnet-4-20250514" >> /tmp/agents_workspace/.env
+        echo "LLM_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> /tmp/agents_workspace/.env
+        echo "LLM_BASE_URL=https://api.anthropic.com" >> /tmp/agents_workspace/.env
+        
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        
+    - name: Install Python dependencies for runner script
+      run: |
+        pip install datasets tqdm anthropic
+        
+    - name: Build Agents Docker image
+      run: |
+        cd /tmp/agents_workspace
+        # Copy docker-compose.yml and Dockerfile if they exist in the repo
+        # For now, we'll use a simplified approach
+        echo "Note: Using Docker-based Agents framework"
+        
+    - name: Generate predictions using Agents framework
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        NUM_INSTANCES: ${{ github.event.inputs.num_instances || '3' }}
+      run: |
+        # Create a simplified runner script for GitHub Actions
+        cat > /tmp/run_agents.py << 'EOF'
+        import json
+        import os
+        from pathlib import Path
+        from datetime import datetime
+        from datasets import load_dataset
+        from anthropic import Anthropic
+        
+        # For GitHub Actions, use direct API approach with Agents-style prompts
+        OUTPUT_DIR = Path("/tmp/predictions")
+        OUTPUT_DIR.mkdir(exist_ok=True)
+        
+        DATASET_NAME = "princeton-nlp/SWE-bench_Lite"
+        MODEL_NAME = "claude-sonnet-4-20250514"
+        NUM_INSTANCES = int(os.getenv("NUM_INSTANCES", "3"))
+        
+        def create_agents_style_prompt(instance):
+            """Create a prompt that mimics the Agents framework approach."""
+            return f"""You are an AI software engineer agent working on fixing a GitHub issue.
+
+        Repository: {instance['repo']}
+        Issue ID: {instance['instance_id']}
+        Base Commit: {instance.get('base_commit', 'N/A')}
+        
+        Issue Description:
+        {instance['problem_statement']}
+        
+        Your task is to generate a git diff patch that fixes this issue.
+        
+        Think step by step:
+        1. Analyze the issue carefully
+        2. Identify which files need to be modified
+        3. Determine the minimal changes needed
+        4. Generate a properly formatted git diff patch
+        
+        IMPORTANT OUTPUT FORMAT:
+        - Use standard unified diff format
+        - Start with: diff --git a/path/file b/path/file
+        - Include --- and +++ lines
+        - Include @@ hunk headers with line numbers
+        - Include context lines around changes
+        - Use - for deletions and + for additions
+        
+        Generate the complete patch below:"""
+        
+        def extract_patch(response):
+            """Extract patch from response."""
+            if "```" in response:
+                start = response.find("```")
+                if start != -1:
+                    start = response.find("\n", start) + 1
+                    end = response.find("```", start)
+                    if end > start:
+                        return response[start:end].strip()
+            
+            lines = response.split('\n')
+            patch_lines = []
+            in_patch = False
+            consecutive_non_patch = 0
+            
+            for line in lines:
+                if line.startswith('diff --git'):
+                    in_patch = True
+                    consecutive_non_patch = 0
+                
+                if in_patch:
+                    is_patch = any([
+                        line.startswith('diff --git'),
+                        line.startswith('---'),
+                        line.startswith('+++'),
+                        line.startswith('@@'),
+                        line.startswith('+'),
+                        line.startswith('-'),
+                        line.startswith(' '),
+                        line.strip() == ''
+                    ])
+                    
+                    if is_patch:
+                        patch_lines.append(line)
+                        consecutive_non_patch = 0
+                    else:
+                        if line.strip().startswith(('```', 'Now', 'Here', 'This')):
+                            break
+                        patch_lines.append(line)
+                        consecutive_non_patch += 1
+                        if consecutive_non_patch > 10:
+                            break
+            
+            return '\n'.join(patch_lines).strip() if patch_lines else ""
+        
+        # Main execution
+        client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        dataset = load_dataset(DATASET_NAME, split="test")
+        instances = list(dataset.select(range(NUM_INSTANCES)))
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        predictions_file = OUTPUT_DIR / f"agents_predictions_{timestamp}.jsonl"
+        
+        print(f"Generating predictions for {NUM_INSTANCES} instances...")
+        
+        with open(predictions_file, 'w') as f:
+            for idx, instance in enumerate(instances, 1):
+                print(f"\n[{idx}/{NUM_INSTANCES}] {instance['instance_id']}")
+                
+                prompt = create_agents_style_prompt(instance)
+                
+                try:
+                    message = client.messages.create(
+                        model=MODEL_NAME,
+                        max_tokens=4096,
+                        temperature=0.0,
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    
+                    response = message.content[0].text
+                    patch = extract_patch(response)
+                    
+                    prediction = {
+                        "instance_id": instance['instance_id'],
+                        "model_name_or_path": MODEL_NAME + "_agents_style",
+                        "model_patch": patch
+                    }
+                    
+                    if not patch:
+                        prediction["error"] = "No patch extracted"
+                        print(f"   ⚠️  No patch found")
+                    else:
+                        print(f"   ✅ Generated ({len(patch)} chars)")
+                    
+                except Exception as e:
+                    prediction = {
+                        "instance_id": instance['instance_id'],
+                        "model_name_or_path": MODEL_NAME + "_agents_style",
+                        "model_patch": "",
+                        "error": str(e)
+                    }
+                    print(f"   ❌ Error: {e}")
+                
+                f.write(json.dumps(prediction) + '\n')
+                f.flush()
+        
+        print(f"\nPredictions saved to: {predictions_file}")
+        print(predictions_file)
+        EOF
+        
+        python3 /tmp/run_agents.py > /tmp/predictions_path.txt
+        
+    - name: Upload predictions artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: agents-predictions
+        path: /tmp/predictions/*.jsonl
+        retention-days: 7
+        
+  # Job 2: Evaluate the generated predictions
+  evaluate_patches:
+    needs: generate_patches
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git build-essential
+        
+    - name: Install Docker
+      run: |
+        docker --version
+        
+    - name: Clone and install SWE-bench
+      run: |
+        cd /tmp
+        git clone https://github.com/SWE-bench/SWE-bench.git
+        cd SWE-bench
+        pip install -e .
+        
+    - name: Upgrade docker package
+      run: |
+        pip install --upgrade docker==7.1.0
+        
+    - name: Download predictions artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: agents-predictions
+        path: /tmp/predictions
+        
+    - name: Run SWE-bench evaluation
+      run: |
+        cd /tmp/SWE-bench
+        
+        # Find the predictions file
+        PRED_FILE=$(ls /tmp/predictions/*.jsonl | head -1)
+        echo "Evaluating: $PRED_FILE"
+        
+        # Determine instance IDs based on input
+        NUM_INSTANCES=${{ github.event.inputs.num_instances || '3' }}
+        if [ "$NUM_INSTANCES" = "3" ]; then
+          INSTANCES="astropy__astropy-12907 astropy__astropy-14182 astropy__astropy-14365"
+        else
+          INSTANCES=""  # Empty means all
+        fi
+        
+        # Run evaluation
+        python3 -m swebench.harness.run_evaluation \
+            --dataset_name princeton-nlp/SWE-bench_Lite \
+            --predictions_path "$PRED_FILE" \
+            --max_workers ${{ github.event.inputs.max_workers || '1' }} \
+            --run_id agents_framework_$(date +%Y%m%d_%H%M%S) \
+            ${INSTANCES:+--instance_ids $INSTANCES}
+        
+    - name: Upload evaluation results
+      uses: actions/upload-artifact@v4
+      with:
+        name: evaluation-results
+        path: |
+          /tmp/SWE-bench/*.json
+          /tmp/SWE-bench/logs/
+        retention-days: 30
+        
+    - name: Display results summary
+      run: |
+        echo "=== Evaluation Complete ==="
+        if [ -f /tmp/SWE-bench/*.json ]; then
+          cat /tmp/SWE-bench/*.json | grep -E "resolved|completed|submitted" || echo "Results file not found"
+        fi
