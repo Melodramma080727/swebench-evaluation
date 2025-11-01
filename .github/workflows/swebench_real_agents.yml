@@ -201,14 +201,14 @@ jobs:
             start_time = time.time()
             
             try:
-                # Build command
+                # Build command - disable TTY for non-interactive mode
                 cmd = [
                     "docker", "compose", "run", "--rm",
+                    "-T",  # Disable pseudo-TTY allocation (non-interactive)
                     "-v", f"{instance_workspace}:/workspace/projects/{instance_id}",
                     "agent",
                     "--task", task,
-                    "--max-iterations", "30",
-                    "--no-auto-continue"
+                    "--max-iterations", "30"
                 ]
                 
                 print(f"Running Agent (timeout: 20 minutes)...")
