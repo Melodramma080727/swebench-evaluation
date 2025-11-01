@@ -73,31 +73,40 @@ jobs:
       run: |
         cd /tmp/agents
         
-        # Create .env file with API key
+        # Create .env file with API key (for generate_config.sh)
         cat > .env << EOF
         LLM_PROVIDER=anthropic
         LLM_MODEL=claude-sonnet-4-20250514
         LLM_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-        LLM_BASE_URL=https://api.anthropic.com
         EOF
         
-        # Create config file
+        # Create config file matching local working format
         cat > workspace/config.docker.toml << EOF
+        # Generated for SWE-bench evaluation
+        
         [core]
-        workspace_base = "/workspace"
-        workspace_mount_path = "/workspace"
+        runtime = "cli"
+        max_iterations = 50
+        file_store = "local"
+        file_store_path = "/workspace/.openhands"
+        workspace_base = "/workspace/projects"
         
         [llm]
-        model = "anthropic/claude-sonnet-4-20250514"
         api_key = "${{ secrets.ANTHROPIC_API_KEY }}"
+        model = "claude-sonnet-4-20250514"
         temperature = 0.0
+        max_tokens = 4096
         
-        [agent]
-        name = "CodeActAgent"
+        [sandbox]
+        trusted_dirs = ["/workspace", "/app"]
+        
+        [security]
+        confirmation_mode = false
         EOF
         
-        echo "Environment configured"
-        cat .env | head -3
+        echo "✅ Environment configured"
+        echo "Config file:"
+        cat workspace/config.docker.toml
         
     - name: Build Agents Docker image
       run: |
