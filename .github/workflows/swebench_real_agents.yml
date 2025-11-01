@@ -234,7 +234,7 @@ jobs:
                     "-e", "OPENHANDS_SKIP_CONFIRMATIONS=true",  # Skip all confirmations
                     "agent",  # No volume override - use docker-compose.yml default mount
                     "--task", task,
-                    "--max-iterations", "50"  # Increased from 30 to allow completion
+                    "--max-iterations", "100"  # Increased to allow completion
                 ]
                 
                 print(f"Running Agent (timeout: 10 minutes for quick test)...")
@@ -243,7 +243,7 @@ jobs:
                 sys.stdout.flush()
                 
                 # Use Popen for real-time output
-                # Send "a" (always) to stdin to auto-approve all confirmations
+                # Keep stdin open to send commands when agent waits for input
                 process = subprocess.Popen(
                     cmd,
                     cwd=AGENTS_DIR,
@@ -255,22 +255,46 @@ jobs:
                     universal_newlines=True
                 )
                 
-                # Send "a\n" multiple times to handle confirmation prompts
-                try:
-                    process.stdin.write("a\n" * 100)
-                    process.stdin.flush()
-                    process.stdin.close()
-                except:
-                    pass
-                
-                # Stream output in real-time
+                # Stream output in real-time and detect if agent is waiting
                 output_lines = []
-                for line in process.stdout:
-                    print(line, end='', flush=True)
-                    output_lines.append(line)
+                import threading
+                import queue
                 
-                # Wait for completion (10 minutes for simple task)
-                return_code = process.wait(timeout=600)
+                output_queue = queue.Queue()
+                
+                def read_output():
+                    for line in process.stdout:
+                        output_queue.put(line)
+                    output_queue.put(None)  # Signal end
+                
+                reader_thread = threading.Thread(target=read_output)
+                reader_thread.daemon = True
+                reader_thread.start()
+                
+                # Monitor output and auto-respond to prompts
+                while True:
+                    try:
+                        line = output_queue.get(timeout=1)
+                        if line is None:
+                            break
+                        print(line, end='', flush=True)
+                        output_lines.append(line)
+                        
+                        # Detect if agent is waiting for input
+                        if "Agent is waiting for your input" in line or "Before I continue" in line:
+                            time.sleep(1)
+                            try:
+                                # Send command to continue
+                                process.stdin.write("Please continue working on the task and create the solution.patch file.\n")
+                                process.stdin.flush()
+                            except:
+                                pass
+                    except queue.Empty:
+                        if process.poll() is not None:
+                            break
+                
+                # Wait for completion (15 minutes for complex task)
+                return_code = process.wait(timeout=900)
                 
                 # Create result object
                 class Result:
