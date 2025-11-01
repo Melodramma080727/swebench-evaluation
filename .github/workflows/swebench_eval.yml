@@ -1,0 +1,109 @@
+name: SWE-bench Evaluation
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      instance_ids:
+        description: 'Instance IDs to evaluate (comma-separated, leave empty for all 3 test instances)'
+        required: false
+        default: ''
+      max_workers:
+        description: 'Number of parallel workers'
+        required: false
+        default: '1'
+  # 也可以通过 push 触发
+  push:
+    branches:
+      - main
+    paths:
+      - 'predictions/**'
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git build-essential
+        
+    - name: Install Docker (if needed)
+      run: |
+        # Docker 通常已经安装在 GitHub Actions runner 上
+        docker --version
+        
+    - name: Clone and install SWE-bench
+      run: |
+        cd /tmp
+        git clone https://github.com/SWE-bench/SWE-bench.git
+        cd SWE-bench
+        pip install -e .
+        
+    - name: Upgrade docker package
+      run: |
+        pip install --upgrade docker==7.1.0
+        
+    - name: Copy prediction files
+      run: |
+        mkdir -p /tmp/predictions
+        if [ -d "predictions" ]; then
+          cp predictions/*.jsonl /tmp/predictions/ || true
+        fi
+        
+    - name: Run SWE-bench evaluation
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: |
+        cd /tmp/SWE-bench
+        
+        # 确定要评估的实例
+        if [ -z "${{ github.event.inputs.instance_ids }}" ]; then
+          # 默认评估 3 个测试实例
+          INSTANCES="astropy__astropy-12907 astropy__astropy-14182 astropy__astropy-14365"
+        else
+          INSTANCES="${{ github.event.inputs.instance_ids }}"
+        fi
+        
+        # 查找 prediction 文件
+        PRED_FILE=$(ls /tmp/predictions/*.jsonl 2>/dev/null | head -1)
+        
+        if [ -z "$PRED_FILE" ]; then
+          echo "No prediction file found, using gold predictions"
+          PRED_PATH="gold"
+        else
+          echo "Using prediction file: $PRED_FILE"
+          PRED_PATH="$PRED_FILE"
+        fi
+        
+        # 运行评估
+        python3 -m swebench.harness.run_evaluation \
+          --dataset_name princeton-nlp/SWE-bench_Lite \
+          --predictions_path "$PRED_PATH" \
+          --max_workers ${{ github.event.inputs.max_workers || '1' }} \
+          --run_id "github_actions_$(date +%Y%m%d_%H%M%S)"
+          
+    - name: Upload evaluation results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: swebench-results
+        path: /tmp/SWE-bench/*.json
+        retention-days: 30
+        
+    - name: Upload evaluation logs
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: swebench-logs
+        path: /tmp/SWE-bench/logs/
+        retention-days: 7
