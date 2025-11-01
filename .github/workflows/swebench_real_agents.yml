@@ -219,15 +219,18 @@ jobs:
             openhands_dir.mkdir(exist_ok=True)
             
             # Create settings.json to skip initial setup prompts
+            # Field names must match Settings model in openhands/storage/data_models/settings.py
             settings_file = openhands_dir / "settings.json"
             settings_data = {
-                "LLM_MODEL": "anthropic/claude-sonnet-4-20250514",
-                "LLM_API_KEY": os.getenv('ANTHROPIC_API_KEY'),
-                "LLM_BASE_URL": None,
-                "AGENT": "CodeActAgent",
-                "CONFIRMATION_MODE": False,
-                "SECURITY_ANALYZER": "",
-                "LANGUAGE": "en",
+                "language": "en",
+                "agent": "CodeActAgent",
+                "max_iterations": 50,
+                "security_analyzer": "",
+                "confirmation_mode": False,
+                "llm_model": "anthropic/claude-sonnet-4-20250514",
+                "llm_api_key": os.getenv('ANTHROPIC_API_KEY'),
+                "llm_base_url": None,
+                "enable_default_condenser": False
             }
             settings_file.write_text(json.dumps(settings_data, indent=2))
             
