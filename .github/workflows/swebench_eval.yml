@@ -74,16 +74,19 @@ jobs:
           INSTANCES="${{ github.event.inputs.instance_ids }}"
         fi
         
-        # 查找 prediction 文件
-        PRED_FILE=$(ls /tmp/predictions/*.jsonl 2>/dev/null | head -1)
+        # 临时：使用 gold predictions 来验证环境
+        echo "Using gold predictions to verify environment"
+        PRED_PATH="gold"
         
-        if [ -z "$PRED_FILE" ]; then
-          echo "No prediction file found, using gold predictions"
-          PRED_PATH="gold"
-        else
-          echo "Using prediction file: $PRED_FILE"
-          PRED_PATH="$PRED_FILE"
-        fi
+        # 查找 prediction 文件（暂时注释掉）
+        # PRED_FILE=$(ls /tmp/predictions/*.jsonl 2>/dev/null | head -1)
+        # if [ -z "$PRED_FILE" ]; then
+        #   echo "No prediction file found, using gold predictions"
+        #   PRED_PATH="gold"
+        # else
+        #   echo "Using prediction file: $PRED_FILE"
+        #   PRED_PATH="$PRED_FILE"
+        # fi
         
         # 运行评估
         python3 -m swebench.harness.run_evaluation \
