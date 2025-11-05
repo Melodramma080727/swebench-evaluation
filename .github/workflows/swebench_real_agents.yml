@@ -184,19 +184,15 @@ jobs:
         4. Generate a complete git diff patch showing all changes
         
         OUTPUT REQUIREMENT:
-        At the end of your work, create a file called 'solution.patch' in the workspace containing ONLY the git diff patch in standard unified diff format:
+        At the end of your work, create a file called 'solution.patch' in the workspace containing ONLY the git diff patch in standard unified diff format.
         
-        diff --git a/src/flask/blueprints.py b/src/flask/blueprints.py
-        --- a/src/flask/blueprints.py
-        +++ b/src/flask/blueprints.py
-        @@ -190,6 +190,8 @@
-         )
-         self.name = name
-         self.url_prefix = url_prefix
-        +        if "." in name:
-        +            raise ValueError("Blueprint names should not contain dots")
-         
-        The patch must be complete and ready to apply with 'git apply'.
+        The patch must:
+        - Use the correct file paths from the repository (e.g., src/flask/blueprints.py)
+        - Include proper line numbers that match the actual code
+        - Show the actual context lines from the files you modified
+        - Be ready to apply with 'git apply'
+        
+        Generate the patch by examining the actual changes you made to the code.
         """
         
         def run_agent_on_task(instance, instance_idx, total):
