@@ -68,9 +68,9 @@ jobs:
         echo "修改后第188-197行:"
         sed -n '188,197p' src/flask/blueprints.py
         
-        # 安装依赖
-        echo "安装Flask依赖..."
-        pip install markupsafe jinja2 werkzeug click itsdangerous
+        # 安装兼容的依赖版本
+        echo "安装与Flask 2.0.1兼容的依赖版本..."
+        pip install "markupsafe<3.0" "jinja2<4.0" "werkzeug<3.0" "click<9.0" "itsdangerous<3.0"
         pip install -e .
         
         # 测试蓝图验证功能
