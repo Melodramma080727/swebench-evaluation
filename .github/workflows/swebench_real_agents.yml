@@ -377,6 +377,13 @@ jobs:
                 if content.strip().startswith('diff --git'):
                     return content.strip()
             
+            # Method 1b: Also check in agent's main workspace directory
+            main_workspace = AGENTS_DIR / "workspace" / "solution.patch"
+            if main_workspace.exists():
+                content = main_workspace.read_text()
+                if content.strip().startswith('diff --git'):
+                    return content.strip()
+            
             # Method 2: Look for any .patch or .diff files
             for ext in ['.patch', '.diff']:
                 for patch_file in workspace_dir.rglob(f'*{ext}'):
