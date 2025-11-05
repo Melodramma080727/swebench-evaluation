@@ -318,7 +318,6 @@ jobs:
                 # DEBUG: List all files in workspace to find where patch was created
                 print("\n=== DEBUG: Workspace file listing ===")
                 try:
-                    import os
                     for root, dirs, files in os.walk(AGENTS_DIR / "workspace"):
                         for file in files:
                             if file.endswith(('.patch', '.diff')) or 'patch' in file.lower():
