@@ -181,10 +181,13 @@ jobs:
         1. Analyze the issue carefully
         2. Identify the files that need to be modified 
         3. Make the necessary code changes
-        4. After making changes, run this EXACT command: git diff > solution.patch
+        4. After making changes, run these EXACT commands:
+           - git add -A
+           - git diff --cached > solution.patch
+           - cat solution.patch
         
-        IMPORTANT: Only run 'git diff > solution.patch' - do not manually write the patch file.
-        Let git generate the proper patch format automatically.
+        IMPORTANT: You must run 'git add -A' first, then 'git diff --cached > solution.patch'.
+        Use --cached to diff staged changes. Then verify by running 'cat solution.patch'.
         """
         
         def run_agent_on_task(instance, instance_idx, total):
