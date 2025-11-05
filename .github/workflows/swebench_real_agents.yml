@@ -189,12 +189,13 @@ jobs:
         diff --git a/src/flask/blueprints.py b/src/flask/blueprints.py
         --- a/src/flask/blueprints.py
         +++ b/src/flask/blueprints.py
-        @@ -line,count +line,count @@
-         context
-        -removed line
-        +added line
-         context
-        
+        @@ -190,6 +190,8 @@
+         )
+         self.name = name
+         self.url_prefix = url_prefix
+        +        if "." in name:
+        +            raise ValueError("Blueprint names should not contain dots")
+         
         The patch must be complete and ready to apply with 'git apply'.
         """
         
