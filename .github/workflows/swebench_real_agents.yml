@@ -181,9 +181,11 @@ jobs:
         1. Analyze the issue carefully
         2. Identify the files that need to be modified  
         3. Make the necessary code changes
-        4. Create a file called 'solution.patch' with your git diff patch
+        4. Generate a git diff patch showing your changes
+        5. Save the patch to a file named 'solution.patch' in the workspace
         
-        The solution.patch file should contain a standard git diff showing your changes.
+        IMPORTANT: The solution.patch file must contain ONLY the git diff output in standard format.
+        Do not include any explanatory text, just the diff content that can be applied with 'git apply'.
         """
         
         def run_agent_on_task(instance, instance_idx, total):
