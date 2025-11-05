@@ -1,0 +1,91 @@
+name: Test Single Patch Application
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test_patch:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install SWE-bench
+      run: |
+        pip install swebench==4.1.0
+        
+    - name: Create test patch
+      run: |
+        cat > test_patch.patch << 'EOF'
+        diff --git a/src/flask/blueprints.py b/src/flask/blueprints.py
+        index 5fb84d86..85d8225e 100644
+        --- a/src/flask/blueprints.py
+        +++ b/src/flask/blueprints.py
+        @@ -188,6 +188,7 @@ class Blueprint(Scaffold):
+             template_folder=template_folder,
+             root_path=root_path,
+         )
+        +        assert "." not in name, "Blueprint names should not contain dots"
+             self.name = name
+             self.url_prefix = url_prefix
+             self.subdomain = subdomain
+        EOF
+        
+    - name: Test patch application
+      run: |
+        # Clone Flask repo at the specific commit
+        git clone https://github.com/pallets/flask.git
+        cd flask
+        git checkout d8c37f43724cd9fb0870f77877b7c4c7e38a19e0
+        
+        # Try to apply the patch
+        echo "Applying patch..."
+        git apply ../test_patch.patch
+        
+        # Check if it applied successfully
+        if [ $? -eq 0 ]; then
+          echo "✅ Patch applied successfully!"
+          git diff --name-only
+          git diff
+        else
+          echo "❌ Patch failed to apply"
+          exit 1
+        fi
+        
+        # Test the validation works
+        echo "Testing blueprint validation..."
+        cat > test_validation.py << 'PYEOF'
+        import sys
+        sys.path.insert(0, 'src')
+        
+        from flask import Blueprint
+        
+        # Test valid blueprint name
+        try:
+            bp1 = Blueprint("valid_name", __name__)
+            print("✅ Valid blueprint name accepted")
+        except Exception as e:
+            print(f"❌ Valid name rejected: {e}")
+            sys.exit(1)
+            
+        # Test invalid blueprint name
+        try:
+            bp2 = Blueprint("invalid.name", __name__)
+            print("❌ Invalid blueprint name was accepted!")
+            sys.exit(1)
+        except AssertionError as e:
+            print(f"✅ Invalid blueprint name correctly rejected: {e}")
+        except Exception as e:
+            print(f"❌ Unexpected error: {e}")
+            sys.exit(1)
+            
+        print("🎉 All tests passed!")
+        PYEOF
+        
+        python test_validation.py
