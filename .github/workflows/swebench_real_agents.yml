@@ -234,7 +234,7 @@ jobs:
                     "-e", "OPENHANDS_SKIP_CONFIRMATIONS=true",  # Skip all confirmations
                     "agent",  # No volume override - use docker-compose.yml default mount
                     "--task", task,
-                    "--max-iterations", "100"  # Increased to allow completion
+                    "--max-iterations", "500"  # Very high limit to avoid iteration errors during SWE-bench testing
                 ]
                 
                 print(f"Running Agent (timeout: 10 minutes for quick test)...")
@@ -303,8 +303,8 @@ jobs:
                         if process.poll() is not None:
                             break
                 
-                # Wait for completion (15 minutes for complex task)
-                return_code = process.wait(timeout=900)
+                # Wait for completion (30 minutes for complex task with high iteration limit)
+                return_code = process.wait(timeout=1800)
                 
                 # Create result object
                 class Result:
