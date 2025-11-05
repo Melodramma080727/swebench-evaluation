@@ -44,19 +44,17 @@ jobs:
         cd flask
         git checkout d8c37f43724cd9fb0870f77877b7c4c7e38a19e0
         
-        # Try to apply the patch
-        echo "Applying patch..."
-        git apply ../test_patch.patch
+        # Check the actual code structure around line 188
+        echo "Checking actual code structure around line 188..."
+        sed -n '180,200p' src/flask/blueprints.py
         
-        # Check if it applied successfully
-        if [ $? -eq 0 ]; then
-          echo "✅ Patch applied successfully!"
-          git diff --name-only
-          git diff
-        else
-          echo "❌ Patch failed to apply"
-          exit 1
-        fi
+        echo "================================"
+        echo "Looking for Blueprint.__init__ method..."
+        grep -n -A 20 "def __init__" src/flask/blueprints.py
+        
+        echo "================================"
+        echo "Original patch was:"
+        cat ../test_patch.patch
         
         # Test the validation works
         echo "Testing blueprint validation..."
