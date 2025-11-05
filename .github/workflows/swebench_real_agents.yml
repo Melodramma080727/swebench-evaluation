@@ -284,8 +284,8 @@ jobs:
                         if "Agent is waiting for your input" in line or "Before I continue" in line:
                             time.sleep(1)
                             try:
-                                # Send command to continue
-                                process.stdin.write("Please continue working on the task and create the solution.patch file.\n")
+                                # Re-send the complete task description when agent is waiting
+                                process.stdin.write(f"{task}\n")
                                 process.stdin.flush()
                             except:
                                 pass
