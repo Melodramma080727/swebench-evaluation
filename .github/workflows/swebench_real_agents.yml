@@ -197,38 +197,16 @@ jobs:
             start_time = time.time()
             
             try:
-                # Create proper config file for this instance
-                api_key = os.getenv('ANTHROPIC_API_KEY')
-                config_lines = [
-                    "[core]",
-                    "runtime = \"cli\"",
-                    "file_store = \"local\"",
-                    "file_store_path = \"./workspace/.openhands-state\"",
-                    "max_iterations = 500",
-                    "fast_start_mode = false",
-                    "",
-                    "[llm]",
-                    f"api_key = \"{api_key}\"",
-                    "model = \"claude-sonnet-4-20250514\""
-                ]
-                config_content = "\n".join(config_lines)
-                
-                config_file = AGENTS_DIR / "config.toml"
-                config_file.write_text(config_content)
-                print(f"✅ Created config.toml with proper LLM settings")
-                
                 # Build command - disable TTY for non-interactive mode
-                # Use config file and proper environment variables
+                # Pass ANTHROPIC_API_KEY as environment variable
                 cmd = [
                     "docker", "compose", "run", "--rm",
                     "-T",  # Disable pseudo-TTY allocation (non-interactive)
                     "-e", f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')}",
                     "-e", "OPENHANDS_SKIP_CONFIRMATIONS=true",  # Skip all confirmations
-                    "-e", "RUNTIME_MOUNT=/workspace/projects:/workspace:rw",  # Use new env var format
-                    "agent",
-                    "--config-file", "/app/config.toml",  # Use our config file
+                    "agent",  # No volume override - use docker-compose.yml default mount
                     "--task", task,
-                    "--max-iterations", "500"
+                    "--max-iterations", "500"  # Very high limit to avoid iteration errors during SWE-bench testing
                 ]
                 
                 print(f"Running Agent (timeout: 10 minutes for quick test)...")
