@@ -179,22 +179,26 @@ jobs:
         
         INSTRUCTIONS:
         1. Analyze the issue carefully
-        2. Identify the files that need to be modified
+        2. Identify the files that need to be modified  
         3. Make the necessary code changes
         4. Generate a complete git diff patch showing all changes
         
         OUTPUT REQUIREMENT:
-        At the end of your work, create a file called 'solution.patch' in the workspace containing ONLY the git diff patch in standard unified diff format:
+        At the end of your work, create a file called 'solution.patch' in the workspace containing ONLY the git diff patch.
         
-        diff --git a/path/to/file.py b/path/to/file.py
-        --- a/path/to/file.py
-        +++ b/path/to/file.py
-        @@ -line,count +line,count @@
-         context
-        -removed line
-        +added line
-         context
+        The patch should be in standard unified diff format with REAL file paths and line numbers, like:
         
+        diff --git a/src/actual/file.py b/src/actual/file.py
+        index abc123..def456 100644
+        --- a/src/actual/file.py
+        +++ b/src/actual/file.py
+        @@ -10,6 +10,7 @@ class SomeClass:
+             existing_line1
+             existing_line2
+        +    new_line_to_add
+             existing_line3
+        
+        IMPORTANT: Replace the example paths and content with your actual changes.
         The patch must be complete and ready to apply with 'git apply'.
         """
         
