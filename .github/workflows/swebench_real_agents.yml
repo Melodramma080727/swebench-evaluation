@@ -400,7 +400,8 @@ jobs:
             for location in possible_locations:
                 if location.exists():
                     content = location.read_text()
-                    if content.strip():  # Accept any non-empty content
+                    # Accept if content has diff markers OR git diff format
+                    if content.strip() and ('diff --git' in content or '@@' in content or '---' in content):
                         print(f"✅ Found patch at: {location}")
                         return content.strip()
             
