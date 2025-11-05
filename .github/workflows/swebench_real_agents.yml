@@ -297,6 +297,7 @@ jobs:
                             "Share another instruction" in line or
                             "let me know when you're ready to resume" in line or
                             "Closed conversation" in line):
+                            print("\n🎯 Task completion detected! Sending exit command...")
                             time.sleep(2)  # Wait for any final output
                             try:
                                 process.stdin.write("exit\n")
@@ -304,6 +305,16 @@ jobs:
                                 process.stdin.close()
                             except:
                                 pass
+                            
+                            # Wait a bit for graceful exit, then force terminate if needed
+                            time.sleep(5)
+                            if process.poll() is None:
+                                print("🔥 Forcing process termination...")
+                                process.terminate()
+                                time.sleep(2)
+                                if process.poll() is None:
+                                    process.kill()
+                            break  # Exit the monitoring loop
                     except queue.Empty:
                         if process.poll() is not None:
                             break
