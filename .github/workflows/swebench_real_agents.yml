@@ -291,7 +291,12 @@ jobs:
                                 pass
                         
                         # Detect task completion and send exit
-                        if "Task completed" in line:
+                        # Multiple patterns for different completion states
+                        if ("Task completed" in line or 
+                            "Stop acknowledged" in line or 
+                            "Share another instruction" in line or
+                            "let me know when you're ready to resume" in line or
+                            "Closed conversation" in line):
                             time.sleep(2)  # Wait for any final output
                             try:
                                 process.stdin.write("exit\n")
