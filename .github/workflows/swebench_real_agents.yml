@@ -181,19 +181,10 @@ jobs:
         1. Analyze the issue carefully
         2. Identify the files that need to be modified 
         3. Make the necessary code changes
-        4. Generate a complete git diff patch showing all changes
+        4. After making changes, run this EXACT command: git diff > solution.patch
         
-        OUTPUT REQUIREMENT:
-        At the end of your work, create a file called 'solution.patch' in the workspace.
-        
-        For this Flask project, you will likely modify files like:
-        - src/flask/blueprints.py (main Flask blueprint code)
-        - tests/test_blueprints.py (blueprint tests)
-        
-        CRITICAL PATCH FORMAT:
-        Run 'git diff' to generate the patch with the EXACT file paths shown by git.
-        DO NOT invent or modify file paths.
-        The patch must apply cleanly with 'git apply'.
+        IMPORTANT: Only run 'git diff > solution.patch' - do not manually write the patch file.
+        Let git generate the proper patch format automatically.
         """
         
         def run_agent_on_task(instance, instance_idx, total):
