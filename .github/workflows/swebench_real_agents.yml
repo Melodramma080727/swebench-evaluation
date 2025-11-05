@@ -181,13 +181,16 @@ jobs:
         1. Analyze the issue carefully
         2. Identify the files that need to be modified 
         3. Make the necessary code changes
-        4. After making changes, run these EXACT commands:
-           - git add -A
-           - git diff --cached > solution.patch
-           - cat solution.patch
+        4. After making changes, run these EXACT commands in order:
+           - pwd (show current directory)
+           - git status (show what files changed)
+           - git add -A (stage all changes)
+           - git diff --cached > solution.patch (create patch from staged changes)
+           - ls -la solution.patch (verify file was created)
+           - cat solution.patch | head -20 (show first 20 lines)
         
-        IMPORTANT: You must run 'git add -A' first, then 'git diff --cached > solution.patch'.
-        Use --cached to diff staged changes. Then verify by running 'cat solution.patch'.
+        CRITICAL: The solution.patch file must be created in the current working directory.
+        Do not change directories. Run all commands in the same directory where you made the code changes.
         """
         
         def run_agent_on_task(instance, instance_idx, total):
