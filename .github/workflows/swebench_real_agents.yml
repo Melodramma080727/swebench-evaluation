@@ -186,39 +186,44 @@ jobs:
             TASK_INSTRUCTIONS: |
               Task: Fix the Flask Blueprint validation issue
               
-              PROBLEM: Currently Flask allows blueprint names with dots (like "api.v1"), but this can cause routing conflicts.
+              IMPORTANT: The correct code structure in src/flask/blueprints.py around line 191:
+              ```python
+              # Line 188-195 context:
+                      template_folder=template_folder,
+                      root_path=root_path,
+                  )
+                  self.name = name  # This is line 191
+                  self.url_prefix = url_prefix
+                  self.subdomain = subdomain
+              ```
               
-              SOLUTION: Add validation in the Blueprint.__init__ method to prevent dots in blueprint names.
+              You need to add validation AFTER line 191 where `self.name = name` is set.
               
-              IMPLEMENTATION GUIDANCE:
-              1. Find the Blueprint class in src/flask/blueprints.py
-              2. Locate the __init__ method (around line 171-191)
-              3. Find where `self.name = name` is set
-              4. Add assertion IMMEDIATELY AFTER `self.name = name`:
-                 `assert "." not in name, "Blueprint names should not contain dots"`
-              
-              IMPORTANT: Use relative positioning instead of exact line numbers:
-              - Look for the exact pattern: `self.name = name`
-              - Insert the assertion on the next line with proper indentation
-              - Match the existing indentation level (use spaces, not tabs)
+              SPECIFIC REQUIREMENTS:
+              1. Add assertion: `assert "." not in name, "Blueprint names should not contain dots"`
+              2. Insert this AFTER `self.name = name` (line 191)
+              3. Use proper indentation (8 spaces)
               
               OUTPUT REQUIREMENT:
               At the end of your work, create a file called 'solution.patch' in the workspace containing ONLY the git diff patch in standard unified diff format.
               
-              The patch should look like:
+              The correct patch format should be:
               ```diff
               diff --git a/src/flask/blueprints.py b/src/flask/blueprints.py
               index [hash]..[hash] 100644
               --- a/src/flask/blueprints.py
               +++ b/src/flask/blueprints.py
-              @@ -X,Y +X,Y+1 @@ class Blueprint(Scaffold):
-               [context lines before]
-               self.name = name
+              @@ -188,6 +188,7 @@ class Blueprint(Scaffold):
+                       template_folder=template_folder,
+                       root_path=root_path,
+                   )
               +        assert "." not in name, "Blueprint names should not contain dots"
-               [context lines after]
+                   self.name = name
+                   self.url_prefix = url_prefix
+                   self.subdomain = subdomain
               ```
               
-              CRITICAL: Focus on the PATTERN `self.name = name` rather than specific line numbers.
+              CRITICAL: Use the EXACT line numbers and context shown above.
         The patch must be complete and ready to apply with 'git apply'.
         """
         
