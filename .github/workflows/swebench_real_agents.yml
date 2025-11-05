@@ -186,13 +186,17 @@ jobs:
         OUTPUT REQUIREMENT:
         At the end of your work, create a file called 'solution.patch' in the workspace containing ONLY the git diff patch in standard unified diff format.
         
-        The patch must:
-        - Use the correct file paths from the repository (e.g., src/flask/blueprints.py)
-        - Include proper line numbers that match the actual code
-        - Show the actual context lines from the files you modified
-        - Be ready to apply with 'git apply'
+        Example format with your actual changes:
+        diff --git a/src/flask/blueprints.py b/src/flask/blueprints.py
+        --- a/src/flask/blueprints.py
+        +++ b/src/flask/blueprints.py
+        @@ -[actual_line],[count] +[actual_line],[count] @@
+         [actual context before]
+        +[your added line]
+         [actual context after]
         
-        Generate the patch by examining the actual changes you made to the code.
+        IMPORTANT: Replace [actual_line], [count], [actual context], and [your added line] with the real values from your changes.
+        The patch must be complete and ready to apply with 'git apply'.
         """
         
         def run_agent_on_task(instance, instance_idx, total):
