@@ -442,7 +442,9 @@ jobs:
             
             # Exclude previously tested instances
             TESTED_INSTANCES = {
-                "pallets__flask-4045",  # Successfully tested with 100% success rate
+                "pallets__flask-4045",     # Successfully tested with 100% success rate
+                "astropy__astropy-12907",  # Successfully tested with 100% success rate  
+                "astropy__astropy-14182",  # Successfully tested with 100% success rate
             }
             
             # Filter out tested instances and select new ones
