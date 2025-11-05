@@ -183,49 +183,18 @@ jobs:
         3. Make the necessary code changes
         4. Generate a complete git diff patch showing all changes
         
-            TASK_INSTRUCTIONS: |
-              Task: Fix the Flask Blueprint validation issue
-              
-              IMPORTANT: The correct code structure in src/flask/blueprints.py around line 191:
-              ```python
-              # Line 188-195 context:
-                      template_folder=template_folder,
-                      root_path=root_path,
-                  )
-                  self.name = name  # This is line 191
-                  self.url_prefix = url_prefix
-                  self.subdomain = subdomain
-              ```
-              
-              You need to add validation AFTER line 191 where `self.name = name` is set.
-              
-              SPECIFIC REQUIREMENTS:
-              1. Add assertion: `assert "." not in name, "Blueprint names should not contain dots"`
-              2. Insert this AFTER `self.name = name` (line 191)
-              3. Use proper indentation (8 spaces)
-              
-              OUTPUT REQUIREMENT:
-              At the end of your work, you MUST create a file called 'solution.patch' in the workspace containing ONLY the git diff patch in standard unified diff format.
-              
-              IMPORTANT: Use a command like:
-              cat > solution.patch << 'EOF'
-              diff --git a/src/flask/blueprints.py b/src/flask/blueprints.py
-              index [hash]..[hash] 100644
-              --- a/src/flask/blueprints.py
-              +++ b/src/flask/blueprints.py
-              @@ -188,6 +188,7 @@ class Blueprint(Scaffold):
-                       template_folder=template_folder,
-                       root_path=root_path,
-                   )
-              +        assert "." not in name, "Blueprint names should not contain dots"
-                   self.name = name
-                   self.url_prefix = url_prefix
-                   self.subdomain = subdomain
-              EOF
-              
-              Then verify the file exists: ls -la solution.patch
-              
-              CRITICAL: Use the EXACT line numbers and context shown above.
+        OUTPUT REQUIREMENT:
+        At the end of your work, create a file called 'solution.patch' in the workspace containing ONLY the git diff patch in standard unified diff format:
+        
+        diff --git a/path/to/file.py b/path/to/file.py
+        --- a/path/to/file.py
+        +++ b/path/to/file.py
+        @@ -line,count +line,count @@
+         context
+        -removed line
+        +added line
+         context
+        
         The patch must be complete and ready to apply with 'git apply'.
         """
         
