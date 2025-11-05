@@ -166,27 +166,9 @@ jobs:
         NUM_INSTANCES = int(os.getenv("NUM_INSTANCES", "1"))
         
         def create_agent_task(instance):
-            """Create task prompt for the Agents framework."""
-            return f"""You are working on the {instance['repo']} repository.
-        
-        TASK: Fix the following GitHub issue by generating a complete git diff patch.
-        
-        Issue ID: {instance['instance_id']}
-        Base Commit: {instance.get('base_commit', 'N/A')}
-        
-        Issue Description:
-        {instance['problem_statement']}
-        
-        INSTRUCTIONS:
-        1. Analyze the issue carefully
-        2. Identify the files that need to be modified  
-        3. Make the necessary code changes
-        4. Generate a git diff patch showing your changes
-        5. Save the patch to a file named 'solution.patch' in the workspace
-        
-        IMPORTANT: The solution.patch file must contain ONLY the git diff output in standard format.
-        Do not include any explanatory text, just the diff content that can be applied with 'git apply'.
-        """
+            """Use SWE-bench native problem statement directly."""
+            # Simply use the original problem statement + minimal patch instruction
+            return instance['problem_statement'] + '\n\nPlease create a file called solution.patch containing the git diff patch with your changes.'
         
         def run_agent_on_task(instance, instance_idx, total):
             """Run the Agents framework on a single SWE-bench task."""
