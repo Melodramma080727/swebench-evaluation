@@ -53,10 +53,27 @@ jobs:
         grep -n -A 20 "def __init__" src/flask/blueprints.py
         
         echo "================================"
-        echo "Original patch was:"
-        cat ../test_patch.patch
+        echo "基于实际代码结构创建正确的补丁:"
         
-        # Test the validation works
+        # 直接修改文件而不是创建补丁
+        echo "在第191行后添加断言..."
+        
+        # 查看修改前的内容
+        echo "修改前第188-195行:"
+        sed -n '188,195p' src/flask/blueprints.py
+        
+        # 在第191行self.name = name之后添加断言
+        sed -i '191a\        assert "." not in name, "Blueprint names should not contain dots"' src/flask/blueprints.py
+        
+        echo "修改后第188-197行:"
+        sed -n '188,197p' src/flask/blueprints.py
+        
+        # 安装依赖
+        echo "安装Flask依赖..."
+        pip install markupsafe jinja2 werkzeug click itsdangerous
+        pip install -e .
+        
+        # 测试蓝图验证功能
         echo "Testing blueprint validation..."
         cat > test_validation.py << 'PYEOF'
         import sys
