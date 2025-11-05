@@ -370,19 +370,26 @@ jobs:
         
         def extract_patch_from_workspace(workspace_dir, agent_output):
             """Extract patch from agent workspace or output."""
-            # Method 1: Look for solution.patch file
+            # Method 1: Look for solution.patch file in multiple locations
             solution_file = workspace_dir / "solution.patch"
             if solution_file.exists():
                 content = solution_file.read_text()
                 if content.strip().startswith('diff --git'):
                     return content.strip()
             
-            # Method 1b: Also check in agent's main workspace directory
-            main_workspace = AGENTS_DIR / "workspace" / "solution.patch"
-            if main_workspace.exists():
-                content = main_workspace.read_text()
-                if content.strip().startswith('diff --git'):
-                    return content.strip()
+            # Method 1b: Check common agent working directories
+            possible_locations = [
+                AGENTS_DIR / "workspace" / "solution.patch",  # Agent's HOME directory
+                AGENTS_DIR / "workspace" / "projects" / "solution.patch",  # Projects root
+                AGENTS_DIR / "solution.patch",  # Agents root
+            ]
+            
+            for location in possible_locations:
+                if location.exists():
+                    content = location.read_text()
+                    if content.strip().startswith('diff --git'):
+                        print(f"✅ Found patch at: {location}")
+                        return content.strip()
             
             # Method 2: Look for any .patch or .diff files
             for ext in ['.patch', '.diff']:
