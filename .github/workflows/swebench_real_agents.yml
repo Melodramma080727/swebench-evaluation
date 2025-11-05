@@ -413,15 +413,18 @@ jobs:
             print(f"\nLoading {DATASET_NAME}...")
             dataset = load_dataset(DATASET_NAME, split="test")
             
-            # Use simple test instance for quick testing
-            TEST_INSTANCE = "pallets__flask-4045"  # Simple 230-char issue
-            instances = [item for item in dataset if item['instance_id'] == TEST_INSTANCE]
+            # Exclude previously tested instances
+            TESTED_INSTANCES = {
+                "pallets__flask-4045",  # Successfully tested with 100% success rate
+            }
             
-            if not instances:
-                print(f"⚠️  Test instance {TEST_INSTANCE} not found, using first {NUM_INSTANCES}")
-                instances = list(dataset.select(range(NUM_INSTANCES)))
+            # Filter out tested instances and select new ones
+            available_instances = [item for item in dataset if item['instance_id'] not in TESTED_INSTANCES]
+            instances = list(available_instances[:NUM_INSTANCES])
             
-            print(f"✅ Testing with {len(instances)} instance(s): {[i['instance_id'] for i in instances]}")
+            print(f"✅ Excluded {len(TESTED_INSTANCES)} previously tested instances")
+            print(f"✅ Selected {len(instances)} new instance(s): {[i['instance_id'] for i in instances]}")
+            print(f"   Total available (untested): {len(available_instances)}")
             
             # Output file
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
