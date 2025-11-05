@@ -186,14 +186,14 @@ jobs:
         OUTPUT REQUIREMENT:
         At the end of your work, create a file called 'solution.patch' in the workspace.
         
-        CRITICAL PATCH FORMAT REQUIREMENTS:
-        - Use the EXACT file paths from the repository (e.g., src/flask/blueprints.py)
-        - Generate standard unified diff format with 'git diff'
-        - Include proper line numbers and context
-        - The patch must be ready to apply with 'git apply'
+        For this Flask project, you will likely modify files like:
+        - src/flask/blueprints.py (main Flask blueprint code)
+        - tests/test_blueprints.py (blueprint tests)
         
-        DO NOT use placeholder paths like 'path/to/file.py' or 'src/actual_file.py'
-        USE the real file paths you actually modified!
+        CRITICAL PATCH FORMAT:
+        Run 'git diff' to generate the patch with the EXACT file paths shown by git.
+        DO NOT invent or modify file paths.
+        The patch must apply cleanly with 'git apply'.
         """
         
         def run_agent_on_task(instance, instance_idx, total):
