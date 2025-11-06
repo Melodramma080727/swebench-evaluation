@@ -74,9 +74,31 @@ jobs:
         # Run the prediction generation script
         python3 generate_predictions.py | tee /tmp/generate.log
         
+        # Debug: Show the generate.log content
+        echo "=== Generate Log Content ==="
+        cat /tmp/generate.log
+        echo "=== End Generate Log ==="
+        
         # Extract predictions file from output
         PREDICTIONS_FILE=$(grep "predictions_file=" /tmp/generate.log | tail -1 | cut -d'=' -f2)
+        echo "Extracted PREDICTIONS_FILE: '$PREDICTIONS_FILE'"
+        
+        # Fallback if extraction failed
+        if [ -z "$PREDICTIONS_FILE" ] || [ ! -f "$PREDICTIONS_FILE" ]; then
+          echo "❌ Predictions file not found or empty. Looking for fallback files..."
+          # Look for any prediction files in /tmp
+          FALLBACK_FILE=$(find /tmp -name "*predictions*.jsonl" -type f 2>/dev/null | head -1)
+          if [ -n "$FALLBACK_FILE" ]; then
+            echo "✅ Found fallback predictions file: $FALLBACK_FILE"
+            PREDICTIONS_FILE="$FALLBACK_FILE"
+          else
+            echo "❌ No predictions file found"
+            exit 1
+          fi
+        fi
+        
         echo "predictions_file=$PREDICTIONS_FILE" >> $GITHUB_OUTPUT
+        echo "Final predictions file: $PREDICTIONS_FILE"
         
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

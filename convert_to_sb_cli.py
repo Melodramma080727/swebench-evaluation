@@ -25,21 +25,40 @@ def convert_jsonl_to_sb_cli_format(jsonl_file, output_file):
     Output format (JSON):
     {"instance_id": {"model_patch": "...", "model_name_or_path": "..."}}
     """
+    # Input validation
+    if not jsonl_file or not Path(jsonl_file).exists():
+        raise FileNotFoundError(f"Input file not found: {jsonl_file}")
+    
+    if Path(jsonl_file).is_dir():
+        raise IsADirectoryError(f"Input path is a directory, not a file: {jsonl_file}")
+    
     predictions = {}
     
+    print(f"📂 Reading from: {jsonl_file}")
+    
     with open(jsonl_file, 'r') as f:
-        for line in f:
+        for line_num, line in enumerate(f, 1):
             line = line.strip()
             if not line:
                 continue
             
-            data = json.loads(line)
-            instance_id = data['instance_id']
-            
-            predictions[instance_id] = {
-                'model_patch': data.get('model_patch', ''),
-                'model_name_or_path': data.get('model_name_or_path', 'real_agents_framework')
-            }
+            try:
+                data = json.loads(line)
+                instance_id = data['instance_id']
+                
+                predictions[instance_id] = {
+                    'model_patch': data.get('model_patch', ''),
+                    'model_name_or_path': data.get('model_name_or_path', 'real_agents_framework')
+                }
+            except json.JSONDecodeError as e:
+                print(f"⚠️  Warning: Invalid JSON on line {line_num}: {e}")
+                continue
+            except KeyError as e:
+                print(f"⚠️  Warning: Missing required field {e} on line {line_num}")
+                continue
+    
+    if not predictions:
+        raise ValueError(f"No valid predictions found in {jsonl_file}")
     
     with open(output_file, 'w') as f:
         json.dump(predictions, f, indent=2)
