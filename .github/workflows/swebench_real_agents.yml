@@ -167,7 +167,7 @@ jobs:
         
         def create_agent_task(instance):
             """Use SWE-bench native problem statement directly."""
-            return instance['problem_statement'] + '\n\nIMPORTANT: After completing your changes, create a git diff patch file and save it as solution.patch in the workspace root. End your response with: PATCH_FILE: /workspace/solution.patch'
+            return instance['problem_statement'] + '\n\nIMPORTANT: Create solution.patch with git diff (or empty file if no changes needed). End with: PATCH_FILE: /workspace/solution.patch'
         
         def run_agent_on_task(instance, instance_idx, total):
             """Run the Agents framework on a single SWE-bench task."""
@@ -396,6 +396,9 @@ jobs:
                                 if content.strip():
                                     print(f"✅ Found agent-declared patch at: {host_path}")
                                     return content.strip()
+                                else:
+                                    print(f"✅ Found empty patch file (issue already resolved): {host_path}")
+                                    return ""  # Empty patch for already resolved issues
             
             # Method 2: Look for solution.patch in multiple locations
             possible_locations = [
