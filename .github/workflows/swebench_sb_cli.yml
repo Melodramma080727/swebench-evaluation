@@ -101,15 +101,24 @@ jobs:
       run: |
         pip install sb-cli
         
-    - name: Generate API key and convert format
+    - name: Convert format and submit to SB-CLI
       env:
         PREDICTIONS_FILE: ${{ needs.generate_predictions.outputs.predictions_file }}
         SUBSET: ${{ github.event.inputs.subset }}
         SPLIT: ${{ github.event.inputs.split }}
+        SWEBENCH_API_KEY: ${{ secrets.SWEBENCH_API_KEY }}
       run: |
-        # Generate API key
-        echo "🔑 Generating SWE-bench API key..."
-        sb-cli gen-api-key
+        # Verify API key is available
+        if [ -z "$SWEBENCH_API_KEY" ]; then
+          echo "❌ SWEBENCH_API_KEY secret not set"
+          echo "Please generate an API key and add it to GitHub Secrets:"
+          echo "1. Run: sb-cli gen-api-key your-email@example.com"
+          echo "2. Verify: sb-cli verify-api-key"
+          echo "3. Add to GitHub Secrets as SWEBENCH_API_KEY"
+          exit 1
+        fi
+        
+        echo "✅ SWE-bench API key found"
         
         # Convert format
         echo "🔄 Converting predictions format..."
