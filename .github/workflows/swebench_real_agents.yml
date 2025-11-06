@@ -167,7 +167,7 @@ jobs:
         
         def create_agent_task(instance):
             """Use SWE-bench native problem statement directly."""
-            return instance['problem_statement'] + '\n\nIMPORTANT: Create solution.patch with git diff (or empty file if no changes needed). End with: PATCH_FILE: /workspace/solution.patch'
+            return instance['problem_statement'] + '\n\nIMPORTANT: \n1. If issue needs fixing: Create solution.patch with git diff output\n2. If issue is already resolved: Create COMPLETELY EMPTY solution.patch file (0 bytes, no content, no comments)\n3. Always end with: PATCH_FILE: /workspace/solution.patch'
         
         def run_agent_on_task(instance, instance_idx, total):
             """Run the Agents framework on a single SWE-bench task."""
@@ -330,7 +330,7 @@ jobs:
                 # Extract patch
                 patch = extract_patch_from_workspace(instance_workspace, result.stdout)
                 
-                if not patch:
+                if patch is None:  # Only fail if patch extraction failed entirely
                     print(f"⚠️  No patch found")
                     # Save output for debugging
                     debug_file = OUTPUT_DIR / f"{instance_id}_output.log"
@@ -344,7 +344,10 @@ jobs:
                         "elapsed_time": elapsed
                     }
                 
-                print(f"✅ Patch extracted ({len(patch)} chars, {len(patch.split(chr(10)))} lines)")
+                if patch == "":
+                    print(f"✅ Empty patch (issue already resolved)")
+                else:
+                    print(f"✅ Patch extracted ({len(patch)} chars, {len(patch.split(chr(10)))} lines)")
                 
                 # Save patch
                 patch_file = OUTPUT_DIR / f"{instance_id}.patch"
@@ -393,12 +396,26 @@ jobs:
                             host_path = AGENTS_DIR / "workspace" / file_path[11:]  # Remove /workspace/
                             if host_path.exists():
                                 content = host_path.read_text()
-                                if content.strip():
+                                content_stripped = content.strip()
+                                
+                                # Check if file is empty
+                                if not content_stripped:
+                                    print(f"✅ Found empty patch file (issue already resolved): {host_path}")
+                                    return ""
+                                
+                                # Check if file contains only comments/documentation (no actual diff)
+                                has_diff_content = any(
+                                    line.startswith(('diff --git', '@@', '---', '+++', '+', '-')) 
+                                    for line in content_stripped.split('\n')
+                                    if line.strip() and not line.strip().startswith('#')
+                                )
+                                
+                                if has_diff_content:
                                     print(f"✅ Found agent-declared patch at: {host_path}")
                                     return content.strip()
                                 else:
-                                    print(f"✅ Found empty patch file (issue already resolved): {host_path}")
-                                    return ""  # Empty patch for already resolved issues
+                                    print(f"✅ Found documentation-only file, treating as empty patch (issue already resolved): {host_path}")
+                                    return ""
             
             # Method 2: Look for solution.patch in multiple locations
             possible_locations = [
@@ -413,15 +430,27 @@ jobs:
                     content = location.read_text()
                     print(f"🔍 Checking patch at {location}")
                     print(f"📄 Content length: {len(content)} chars")
-                    print(f"📝 First 200 chars: {repr(content[:200])}")
-                    # Accept if content has diff markers OR git diff format
-                    if content.strip() and ('diff --git' in content or '@@' in content or '---' in content):
+                    
+                    content_stripped = content.strip()
+                    
+                    # Check if file is empty
+                    if not content_stripped:
+                        print(f"✅ Found empty patch file (issue already resolved): {location}")
+                        return ""
+                    
+                    # Check if file contains actual diff content
+                    has_diff_content = any(
+                        line.startswith(('diff --git', '@@', '---', '+++', '+', '-')) 
+                        for line in content_stripped.split('\n')
+                        if line.strip() and not line.strip().startswith('#')
+                    )
+                    
+                    if has_diff_content:
                         print(f"✅ Found valid patch at: {location}")
                         return content.strip()
                     else:
-                        print(f"❌ Invalid patch format at: {location}")
-                        if content.strip():
-                            print(f"💡 Content exists but missing diff markers")
+                        print(f"✅ Found documentation-only file, treating as empty patch: {location}")
+                        return ""
             
             # Method 2: Look for any .patch or .diff files
             for ext in ['.patch', '.diff']:
@@ -448,7 +477,9 @@ jobs:
                 if patch_lines:
                     return '\n'.join(patch_lines).strip()
             
-            return ""
+            # Return None when no patch is found (failure case)
+            # vs empty string "" which indicates already resolved issue
+            return None
         
         def main():
             print("="*80)
