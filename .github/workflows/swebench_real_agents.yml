@@ -167,8 +167,7 @@ jobs:
         
         def create_agent_task(instance):
             """Use SWE-bench native problem statement directly."""
-            # Simply use the original problem statement + minimal patch instruction
-            return instance['problem_statement'] + '\n\nPlease create a file called solution.patch containing the git diff patch with your changes.'
+            return instance['problem_statement'] + '\n\nIMPORTANT: After completing your changes, create a git diff patch file and save it as solution.patch in the workspace root. End your response with: PATCH_FILE: /workspace/solution.patch'
         
         def run_agent_on_task(instance, instance_idx, total):
             """Run the Agents framework on a single SWE-bench task."""
@@ -383,27 +382,43 @@ jobs:
         
         def extract_patch_from_workspace(workspace_dir, agent_output):
             """Extract patch from agent workspace or output."""
-            # Method 1: Look for solution.patch file in multiple locations
-            solution_file = workspace_dir / "solution.patch"
-            if solution_file.exists():
-                content = solution_file.read_text()
-                if content.strip().startswith('diff --git'):
-                    return content.strip()
             
-            # Method 1b: Check common agent working directories
+            # Method 1: Parse agent output for PATCH_FILE declaration
+            if 'PATCH_FILE:' in agent_output:
+                for line in agent_output.split('\n'):
+                    if 'PATCH_FILE:' in line:
+                        file_path = line.split('PATCH_FILE:')[1].strip()
+                        # Convert workspace path to host path
+                        if file_path.startswith('/workspace/'):
+                            host_path = AGENTS_DIR / "workspace" / file_path[11:]  # Remove /workspace/
+                            if host_path.exists():
+                                content = host_path.read_text()
+                                if content.strip():
+                                    print(f"✅ Found agent-declared patch at: {host_path}")
+                                    return content.strip()
+            
+            # Method 2: Look for solution.patch in multiple locations
             possible_locations = [
-                AGENTS_DIR / "workspace" / "solution.patch",  # Agent's HOME directory
-                AGENTS_DIR / "workspace" / "projects" / "solution.patch",  # Projects root
-                AGENTS_DIR / "solution.patch",  # Agents root
+                workspace_dir / "solution.patch",
+                AGENTS_DIR / "workspace" / "solution.patch",  
+                AGENTS_DIR / "workspace" / "projects" / "solution.patch",
+                AGENTS_DIR / "solution.patch",
             ]
             
             for location in possible_locations:
                 if location.exists():
                     content = location.read_text()
+                    print(f"🔍 Checking patch at {location}")
+                    print(f"📄 Content length: {len(content)} chars")
+                    print(f"📝 First 200 chars: {repr(content[:200])}")
                     # Accept if content has diff markers OR git diff format
                     if content.strip() and ('diff --git' in content or '@@' in content or '---' in content):
-                        print(f"✅ Found patch at: {location}")
+                        print(f"✅ Found valid patch at: {location}")
                         return content.strip()
+                    else:
+                        print(f"❌ Invalid patch format at: {location}")
+                        if content.strip():
+                            print(f"💡 Content exists but missing diff markers")
             
             # Method 2: Look for any .patch or .diff files
             for ext in ['.patch', '.diff']:
